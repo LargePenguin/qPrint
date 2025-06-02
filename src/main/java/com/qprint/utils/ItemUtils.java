@@ -28,38 +28,70 @@ public class ItemUtils {
         return freeSlots;
     }
 
-    public static void scaleMaterialsList(Map<Item, Integer> mats) {
-        var total = mats.values().stream().mapToInt(Integer::intValue).sum();
-        var emptySlots = getFreeSlots();
+    public static List<Integer> getSlotsWithItem(int playerInvStart, Item item) {
+        assert mc.player != null;
 
-        if (mats.size() > emptySlots)
+        var result = new ArrayList<Integer>();
+
+        for (var i = playerInvStart; i < mc.player.currentScreenHandler.slots.size(); i++) {
+            var playerStack = mc.player.currentScreenHandler.getSlot(i).getStack();
+            if (!playerStack.isEmpty() && playerStack.getItem().equals(item)) {
+                result.add(i);
+            }
+        }
+
+        return result;
+    }
+
+    public static void scaleMaterialsList(Map<Item, Integer> mats) {
+        var total = mats.values().stream().filter(i -> i >= 0).mapToInt(Integer::intValue).sum();
+        var emptySlots = getFreeSlots() - mats.values().stream()
+            .filter(i -> i < 0)
+            .mapToInt(Math::abs)
+            .sum();
+
+        if (mats.size() > emptySlots) {
+            for (var entry : mats.entrySet()) {
+                if (entry.getValue() < 0) {
+                    entry.setValue(-entry.getKey().getMaxCount() * entry.getValue());
+                }
+            }
             return; // we'd be scaling down the requested amounts; we only ever want to scale up
+        }
 
         if (total == 0)
             return;
 
         // Compute relative ratios of each requested item, scaled to available slots
         for (var entry : mats.entrySet()) {
+            if (entry.getValue() < 0) {
+                entry.setValue(-entry.getKey().getMaxCount() * entry.getValue());
+                continue;
+            }
             var ratio = entry.getValue() / (double)total;
-            entry.setValue(Math.max(64, 64 * (int)Math.floor(ratio * emptySlots)));
+            entry.setValue(Math.max(entry.getKey().getMaxCount(), entry.getKey().getMaxCount() * (int)Math.floor(ratio * emptySlots)));
         }
     }
 
-    public static List<Item> getPartialBlockStacks() {
+    public static Map<Item, List<Integer>> getSmallBlockStacks(int playerInvStart, int threshold) {
         assert mc.player != null;
-        var result = new ArrayList<Item>();
+        var result = new HashMap<Item, List<Integer>>();
 
-        for (var stack : mc.player.getInventory().main) {
-            if (stack.isEmpty())
-                continue;
-
+        for (var i = playerInvStart; i < mc.player.currentScreenHandler.slots.size(); i++) {
+            var stack = mc.player.currentScreenHandler.getSlot(i).getStack();
             var item = stack.getItem();
 
-            if (!(item instanceof BlockItem))
-                continue;
+            if (stack.isEmpty()) continue;
+            if (!(item instanceof BlockItem)) continue;
 
-            if (stack.getCount() < stack.getMaxCount() && !result.contains(item)) {
-                result.add(item);
+            if (stack.getCount() < threshold) {
+                if (result.containsKey(item)) {
+                    result.get(item).add(i);
+                } else {
+                    var list = new ArrayList<Integer>();
+                    list.add(i);
+                    result.put(item, list);
+                }
             }
         }
 

@@ -18,63 +18,40 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.qprint.utils.ItemUtils.*;
 import static com.qprint.utils.Utilities.*;
 import static meteordevelopment.meteorclient.MeteorClient.mc;
 
-public class RestockState extends AbstractState{
-    private static final int OPEN_TICK_STUCK_DELAY = 5;
-    private final Map<Item, Integer> missingMaterials;
+public class RestockState extends AbstractContainerState {
+    public final Map<Item, Integer> missingMaterials;
     private final BlockPos playerPosPreState;
-    private final Map<BlockPos, Integer> containersToProcess = new HashMap<>();
 
     private boolean hasMovedBack;
     private boolean regionRefreshed;
 
-    private BlockPos currentTargetContainer;
     private Item currentTargetItem;
 
-    private boolean isChestOpen = false;
     private int totalClicksThisTick = 0;
     private int maxClicks = 0;
     private int openTicks;
-    private int autoStealTicks;
-    private double reach;
-    private float originalYaw;
-    private float originalPitch;
 
-    private int slotsToFreeUp = 0;
-    private int currentStuckRetry = 0;
+    private int slotsToFreeUp;
+
+    private boolean initialized;
     private boolean pausePending;
-    private int openedTicksPassed;
+    private boolean hasDumped;
 
     public RestockState(QuickPrintModule module, Map<Item, Integer> missingMaterials, BlockPos playerPos) {
         super(module);
         this.missingMaterials = missingMaterials;
         this.playerPosPreState = playerPos;
 
-        // scale up requested material amounts so that we're never leaving without a full inventory
-        // TODO: implement a better heuristic for this. could scan the schematic to figure out relative ratios of remaining blocks to place
-        if (missingMaterials.entrySet().size() > getFreeSlots())
-            if (module.useTrash.get()) {
-                slotsToFreeUp = missingMaterials.entrySet().size() - getFreeSlots();
-            } else {
-                module.warning("Not enough free slots! Please dump some unneeded items or enable the \"Use Trash\" option in settings.");
-                pausePending = true;
-            }
-        else
-            scaleMaterialsList(this.missingMaterials);
+        updateReach();
 
-        // add partial stacks AFTER scaling material list to avoid picking up any additional stacks of these items
-        // set target amount to 0 items so that only stack swapping logic will be performed
-        if (module.swapStacks.get()) {
-            for (var partialStack : getPartialBlockStacks()) {
-                if (!missingMaterials.keySet().contains(partialStack)) {
-                    missingMaterials.put(partialStack, 0);
-                }
-            }
-        }
+        if (missingMaterials.entrySet().size() > getFreeSlots())
+            slotsToFreeUp = missingMaterials.entrySet().size() - getFreeSlots();
     }
 
     @Override
@@ -110,78 +87,34 @@ public class RestockState extends AbstractState{
 
         updateReach();
 
+        if (!hasDumped && module.useTrash.get()) {
+            hasDumped = true;
+            parent.push(new DumpState(module, this, slotsToFreeUp));
+            return;
+        }
+
         if (!canReachTarget()) {
             parent.push(new MoveState(module, currentTargetContainer, (int)reach - 1));
             return;
         }
 
-        // reset autoStealTicks when we're not in a container
-        if (!isContainerScreen(mc.player.currentScreenHandler))
-            autoStealTicks = 0;
-
-        if (isChestOpen && mc.player.currentScreenHandler != null && !isContainerScreen(mc.player.currentScreenHandler)) {
-            if (openedTicksPassed > 0) {
-                openedTicksPassed--;
-            } else {
-                // Likely stuck-- we should have a chest open, but we don't.
-                // Try moving a bit closer and opening the container again.
-                isChestOpen = false;
-                containersToProcess.remove(currentTargetContainer);
-                currentStuckRetry++;
-
-                openedTicksPassed = OPEN_TICK_STUCK_DELAY;
-
-                module.error("Failed to open container! Attempting resolution (" + currentStuckRetry + "/" + module.maxStuckResolutions.get() + ")...");
-
-                if (Math.floor(reach) - currentStuckRetry > 0) {    // Method 1: try getting closer to the container
-                    parent.push(new MoveState(module, currentTargetContainer, (int) Math.floor(reach) - currentStuckRetry));
-                    return;
-                } else {    // Method 2: pathfind back to platformOrigin to see if we can approach from a different angle
-                    parent.push(new MoveState(module, vecToPos(module.platformOrigin.get()), 0));
-                    return;
-                }
-            }
+        if (checkStuck()) {
+            return;
         }
 
-        if (currentTargetContainer != null) {
-            var blockState = mc.world.getBlockState(currentTargetContainer);
-            var block = blockState.getBlock();
+        var blockState = mc.world.getBlockState(currentTargetContainer);
+        var block = blockState.getBlock();
 
-            // Check if block is a container & the container screen is open
-            if (isValidContainerBlock(block)) {
-                if (mc.player.currentScreenHandler != null && isContainerScreen(mc.player.currentScreenHandler)) {
-                    // TODO: Won't this result in the container being processed in 2 concurrent ticks?
-                    if (autoStealTicks == 0) {
-                        processContainerItems();
-                    }
-
-                    if (autoStealTicks < module.autoStealDelay.get()) {
-                        autoStealTicks++;
-                    }
-                    else if (autoStealTicks >= module.autoStealDelay.get()) {
-                        processContainerItems();
-                        autoStealTicks = 0;
-                    }
-                }
-            }
-
-            if (openTicks < module.containerOpenDelay.get())
+        if (isValidContainerBlock(block) && !isChestOpen) {
+            if (openTicks < module.containerOpenDelay.get()) {
                 openTicks++;
-
-            if (mc.interactionManager == null)
-                return;
-
-            // Check if we can open a new container
-            if (openTicks >= module.containerOpenDelay.get()) {
-                if (isValidContainerBlock(block) && !isChestOpen) {
-                    openContainer(currentTargetContainer);
-                }
-
+            } else {
+                openContainer(currentTargetContainer);
                 openTicks = 0;
             }
+        } else if (isChestOpen && isContainerScreen(mc.player.currentScreenHandler)) {
+            processChestsAfterDelay();
         }
-
-        processChestsAfterDelay();
     }
 
     @Override
@@ -206,55 +139,45 @@ public class RestockState extends AbstractState{
             updateTarget();
     }
 
-    private void processContainerItems() {
-        if (mc.player == null)
-            return;
+    @Override
+    protected boolean processContainerItems() {
+        assert mc.player != null;
 
         // Get the index of the first player inventory slot
         int playerInvStart = mc.player.currentScreenHandler.slots.size() - 36;
-        maxClicks = module.maxClicksPerTick.get();
+        totalClicksThisTick = module.maxClicksPerTick.get();
 
-        if (currentTargetItem == null) {
-            if (!module.useTrash.get() || currentTargetContainer != module.activeStorage.getTrash())
-                return;
-
-            if (slotsToFreeUp <= 0) {
-                totalClicksThisTick = 0;
-                return;
-            }
-
-            if (isContainerScreen(mc.player.currentScreenHandler)) {
-                var dumpedThisTick = dumpTrash(playerInvStart, slotsToFreeUp);
-                slotsToFreeUp -= dumpedThisTick;
-                totalClicksThisTick = 0;
-                return;
-            }
+        if (!initialized) {
+            initialized = true;
+            scaleMaterialsList(missingMaterials);
         }
 
         // Build a list of all the slots in the container which contain currentTargetItem
-        List<Integer> slotIndices = new ArrayList<>();
-        for (int i = 0; i < mc.player.currentScreenHandler.slots.size(); i++) {
+        Map<Integer, Integer> slotIndices = new HashMap<>();
+        for (int i = 0; i < playerInvStart; i++) {
             Item item = mc.player.currentScreenHandler.getSlot(i).getStack().getItem();
             if (item.equals(currentTargetItem))
-                slotIndices.add(i);
+                slotIndices.put(i, mc.player.currentScreenHandler.getSlot(i).getStack().getCount());
         }
 
         // Take target items up to the defined limit.
-        for (int slotIdx : slotIndices) {
+        for (int slotIdx : slotIndices.entrySet().stream()
+            .sorted(Map.Entry.<Integer, Integer>comparingByValue().reversed())
+            .map(Map.Entry::getKey)
+            .collect(Collectors.toList())) {
             var item = mc.player.currentScreenHandler.getSlot(slotIdx).getStack().getItem();
             int currentCount = getItemCount(item);
             if (currentCount < missingMaterials.get(currentTargetItem)) {
-                int amountToMove = missingMaterials.get(currentTargetItem) - currentCount;
-                moveItems(slotIdx, amountToMove);
+                if (totalClicksThisTick <= 0)
+                    return false;   // still got more to do next tick
+                mc.interactionManager.clickSlot(mc.player.currentScreenHandler.syncId, slotIdx, 0, SlotActionType.QUICK_MOVE, mc.player);
+                totalClicksThisTick--;
             }
         }
 
-        // Swap out items for larger stacks
-        if (module.swapStacks.get() && isContainerScreen(mc.player.currentScreenHandler)) {
-            swapSmallerStacksForBigger(playerInvStart);
-        }
-
-        totalClicksThisTick = 0;
+        missingMaterials.remove(currentTargetItem);
+        currentTargetItem = null;
+        return true;
     }
 
     private int dumpTrash(int playerInvStart, int slotsToFreeUp) {
@@ -352,12 +275,12 @@ public class RestockState extends AbstractState{
                 int clicksNeeded = (int)Math.ceil((double)amount / sourceStack.getMaxCount());
 
                 for (int i = 0; i < clicksNeeded; i++) {
-                    if (totalClicksThisTick >= maxClicks)
+                    if (totalClicksThisTick <= 0)
                         return;
 
                     // Takey McStealems
                     mc.interactionManager.clickSlot(mc.player.currentScreenHandler.syncId, slotIndex, 0, SlotActionType.QUICK_MOVE, mc.player);
-                    totalClicksThisTick++;
+                    totalClicksThisTick--;
                 }
             }
         }
@@ -398,77 +321,7 @@ public class RestockState extends AbstractState{
         return mc.player.getBlockPos().isWithinDistance(currentTargetContainer, reach);
     }
 
-    private void processChestsAfterDelay() {
-        assert mc.player != null;
-
-        containersToProcess.entrySet().removeIf(e -> {
-            var delay = e.getValue();
-            // have we kept the container open long enough?
-            if (delay <= 0) {
-                if (mc.player.currentScreenHandler != null && isContainerScreen(mc.player.currentScreenHandler)) {
-                    processContainerItems();    // steal some shit
-                    mc.player.closeHandledScreen(); // close the container
-
-                    // restore orientation
-                    if (module.rotateToFaceContainer.get()) {
-                        mc.player.setYaw(originalYaw);
-                        mc.player.setPitch(originalPitch);
-                    }
-                    isChestOpen = false;
-                    missingMaterials.remove(currentTargetItem);
-                    currentTargetContainer = null;
-                    currentTargetItem = null;
-
-                    currentStuckRetry = 0;
-                }
-
-                return true;
-            } else {    // decrease delay
-                e.setValue(delay - 1);
-                return false;
-            }
-        });
-    }
-
-    private void openContainer(BlockPos blockPos) {
-        assert mc.player != null;
-
-        // Face the container (if configured to do so)
-        if (module.rotateToFaceContainer.get()) {
-            originalYaw = mc.player.getYaw();
-            originalPitch = mc.player.getPitch();
-            mc.player.lookAt(EntityAnchorArgumentType.EntityAnchor.EYES, new Vec3d(blockPos.getX(), blockPos.getY(), blockPos.getZ()));
-        }
-
-        // Perform the hand swing (if configured to do so)
-        if (module.doHandSwing.get()) {
-            mc.getNetworkHandler().sendPacket(new HandSwingC2SPacket(Hand.MAIN_HAND));
-            mc.player.swingHand(Hand.MAIN_HAND);
-        }
-
-        // Open the container
-        mc.interactionManager.interactBlock(mc.player, Hand.MAIN_HAND, new BlockHitResult(blockPos.toCenterPos(), Direction.UP, blockPos, true));
-        isChestOpen = true;
-        containersToProcess.put(blockPos, module.remainOpenDelay.get());
-        openedTicksPassed = OPEN_TICK_STUCK_DELAY;
-    }
-
-    private void updateReach() {
-        reach = module.reachMode.get() == QuickPrintModule.ReachModes.Sphere ? module.sphereReachRange.get() : module.boxReachRange.get();
-    }
-
     private void updateTarget() {
-        if (slotsToFreeUp > 0) {
-            if (module.activeStorage.getTrash() == null) {
-                module.error("\"Use Trash\" is enabled, but storage region does not contain a trash chest. Use a cactus to denote a trash chest.");
-                slotsToFreeUp = 0;
-            } else {
-                currentTargetItem = null;
-                currentTargetContainer = module.activeStorage.getTrash();
-                return;
-            }
-        }
-
         currentTargetItem = missingMaterials.keySet().iterator().next();
         currentTargetContainer = module.activeStorage.getContainerFor(currentTargetItem.getName().getString());
 

@@ -149,16 +149,32 @@ public class QuickPrintModule extends Module {
     );
 
     // ============================= RESTOCK SETTINGS ============================================
-    public final Setting<Boolean> swapStacks = sgRestock.add(new BoolSetting.Builder()
-        .name("Swap Lesser Stacks for Better Stacks")
-        .description("Dumps small stacks of items for bigger stacks of items. Requires there to be an empty slot in the target container.")
-        .defaultValue(false)
-        .build()
-    );
     public final Setting<Boolean> useTrash = sgRestock.add(new BoolSetting.Builder()
         .name("Dump Unneeded Items in Trash")
         .description("Only blocks will be dumped. Items, gear, etc. will remain in inventory")
         .defaultValue(true)
+        .build()
+    );
+    public final Setting<Integer> excessMaterialsThreshold = sgRestock.add(new IntSetting.Builder()
+        .name("Material Cap (stacks)")
+        .description("The largest amount of a single material the account should hold. Excess stacks will be dumped in the trash chest.")
+        .defaultValue(6)
+        .range(1,27)
+        .visible(useTrash::get)
+        .build()
+    );
+    public final Setting<Boolean> swapStacks = sgRestock.add(new BoolSetting.Builder()
+        .name("Swap Lesser Stacks for Better Stacks")
+        .description("Dumps small stacks of items for bigger stacks of items.")
+        .defaultValue(false)
+        .build()
+    );
+    public final Setting<Integer> swapStackThreshold = sgRestock.add(new IntSetting.Builder()
+        .name("Small Stack Threshold (blocks)")
+        .description("Stacks containing <= this number of items will be swapped if dumpSmallStacks = true.")
+        .defaultValue(16)
+        .range(1,64)
+        .visible(swapStacks::get)
         .build()
     );
     public final Setting<Boolean> stopOnMissingMaterial = sgRestock.add(new BoolSetting.Builder()

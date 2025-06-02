@@ -102,8 +102,7 @@ public abstract class AbstractState {
         if (event.packet instanceof PlayerInteractBlockC2SPacket) {
             interactThisTick = true;
         } else if (event.packet instanceof PlayerActionC2SPacket p) {
-            if (p.getAction() == PlayerActionC2SPacket.Action.START_DESTROY_BLOCK ||
-                p.getAction() == PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK) {
+            if (p.getAction() == PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK) {
                 interactThisTick = true;
             }
         }

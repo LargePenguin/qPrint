@@ -12,6 +12,7 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 
+import static com.qprint.utils.ItemUtils.getSlotsWithItem;
 import static meteordevelopment.meteorclient.MeteorClient.mc;
 
 public class RecencyTracker {
@@ -53,15 +54,15 @@ public class RecencyTracker {
         return result;
     }
 
-    private List<Integer> getSlotsWithItem(int playerInvStart, Item item) {
+    public List<Integer> getExcessStackSlots(int playerInvStart, int threshold) {
         assert mc.player != null;
 
         var result = new ArrayList<Integer>();
 
-        for (var i = playerInvStart; i < mc.player.currentScreenHandler.slots.size(); i++) {
-            var playerStack = mc.player.currentScreenHandler.getSlot(i).getStack();
-            if (!playerStack.isEmpty() && playerStack.getItem().equals(item)) {
-                result.add(i);
+        for (var item : recentItems) {
+            var slots = getSlotsWithItem(playerInvStart, item);
+            if (slots.size() > threshold) {
+                result.addAll(slots.stream().limit(slots.size() - threshold).toList());
             }
         }
 
