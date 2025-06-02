@@ -86,7 +86,7 @@ The primary command, `.qp`, is documented below.
 * **Why is the ETA so terrible?**
 	* Servers with low render distance prevent qPrint from accurately measuring overall print progress.
 	* This will be addressed in a future release.
-* **I got kicked for unusual inventory activity, why?**
+* **I got kicked for unlikely inventory interactions, why?**
 	* qPrint probably tried to move stuff around too quickly while restocking itself. 
 	* Try playing around with the "Max Clicks Per Tick", "Container Interact Delay", "Container Close Delay", and "AutoSteal Delay" options in the module.
 * **Why does qPrint get stuck standing next to my chests?**
