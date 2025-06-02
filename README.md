@@ -15,7 +15,7 @@ The default configuration works (relatively) well on Constantiam.net, which is w
 * Open a blank map to make sure you're at the upper-left corner of a map.
 * Use F3 + G to show chunk borders.
 * If you're using the official schematic, paste it so that the light blue wool is in the top-left corner of the map
-![[Pasted image 20250601204713.png]](./screenshots/20250601204713.png)
+![Screenshot 0](http://raw.githubusercontent.com/LargePenguin/qPrint/refs/heads/main/screenshots/Pasted%20image%2020250601204713.png)
 ### Labeling
 
 qPrint uses item frames to determine what chests it should expect to find which items in. One type of item per chest, please!
@@ -26,21 +26,21 @@ qPrint uses an item frame containing a cactus to denote a trash chest. When exce
 ## Define a chest region
 
 In the module settings, enable "Render Volumes".
-![[Pasted image 20250601204850.png]]
+![Screenshot 1](http://raw.githubusercontent.com/LargePenguin/qPrint/refs/heads/main/screenshots/Pasted%20image%2020250601204713.png)
 
 Use the commands `.qp loc set chestP1 [pos]` and `.qp loc set chestP2 [pos]` to define a storage region.
 
 If you're using the official schematic, run one command while standing on the green wool and the other while standing on the red wool.
-![[Pasted image 20250601205459.png]]
+![Screenshot 2](http://raw.githubusercontent.com/LargePenguin/qPrint/refs/heads/main/screenshots/Pasted%20image%2020250601205459.png)
 
 **Tip:** Verify that your region contains all of your chests by using the "Print State Contents" option in the module settings.
-![[Pasted image 20250601210350.png]]
+![Screenshot 3](http://raw.githubusercontent.com/LargePenguin/qPrint/refs/heads/main/screenshots/Pasted%20image%2020250601210350.png)
 ## Define the platform origin
 
 Stand at the top left-most block rendered on your map and run the command `.qp loc set platformOrigin [pos]`.
 
 For the official schematic, run this command while standing on the light blue wool.
-![[Pasted image 20250601205758.png]]
+![Screenshot 4](http://raw.githubusercontent.com/LargePenguin/qPrint/refs/heads/main/screenshots/Pasted%20image%2020250601205758.png)
 
 ## Run your first print
 
