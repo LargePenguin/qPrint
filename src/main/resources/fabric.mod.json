@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "quick-print",
+  "version": "${version}",
+  "name": "qPrint",
+  "description": "The fastest mapart printer in the west.",
+  "authors": [
+    "Chubby__Penguin"
+  ],
+  "contact": {
+    "repo": "https://github.com/LargePenguin/qPrint"
+  },
+  "icon": "assets/template/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "meteor": [
+      "com.qprint.QPrintAddon"
+    ]
+  },
+  "mixins": [
+  ],
+  "custom": {
+    "meteor-client:color": "225,25,25"
+  },
+  "depends": {
+    "java": ">=21",
+    "minecraft": ["${mc_version}"],
+    "meteor-client": "*"
+  }
+}
