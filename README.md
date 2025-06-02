@@ -3,12 +3,23 @@ Written by Chubby__Penguin.
 
 Works best for flat carpet and fullblock staircased maparts. Staircased carpet is not supported due to some internal nonsense with Baritone.
 
+# Features
+
+* 97% automated map printing.
+* Detection and resolution of Baritone getting hung.
+* Auto-restock:
+  * When your account runs out of materials, qPrint will automatically grab what it needs from your chests.
+  * If there's no space in your inventory, qPrint will make use of a user-defined trash chest to create space.
+* Multi-agent avoidance. 
+
 # Quickstart
 
 ## Installation
-
-* Clone the repo and build with your favorite Java IDE.
-* Or download the latest prebuilt jar [here](https://github.com/LargePenguin/qPrint/releases/latest).
+- Install Fabric 1.21.1.
+- Download Meteor Client and put it in your mods folder.
+- Clone the repo and build with your favorite Java IDE or download the latest prebuilt jar [here](https://github.com/LargePenguin/qPrint/releases/latest).
+- Place qPrint in your mods folder with Meteor.
+- Profit.
 
 ## Configuration
 
@@ -71,14 +82,15 @@ The primary command, `.qp`, is documented below.
 * **Is this backdoored?**
 	* No.
 	* Look at the source code for yourself.
-	* Always build from source. If you use prebuilt jar files from random anarchy players, you're an idiot and will eventually suffer for it.
-* **Why is the ETA so bad?**
+	* Always build from source. If you use prebuilt jar files from random anarchy players, you're a fool and will eventually suffer for it.
+* **Why is the ETA so terrible?**
 	* Servers with low render distance prevent qPrint from accurately measuring overall print progress.
 	* This will be addressed in a future release.
 * **I got kicked for unusual inventory activity, why?**
 	* qPrint probably tried to move stuff around too quickly while restocking itself. 
 	* Try playing around with the "Max Clicks Per Tick", "Container Interact Delay", "Container Close Delay", and "AutoSteal Delay" options in the module.
-* **qPrint gets stuck standing next to chests, why?**
+* **Why does qPrint get stuck standing next to my chests?**
 	* Most servers will verify that your character actually has direct line of sight to blocks you interact with.
 	* Try enabling the "Swing Hand When Opening" and "Face Container When Opening" options in the module.
+   	* Dropping the maximum reach in the module settings may also increase the odds of a successful chest interaction.
 	* Use the official duper schematic. The restock chests are all positioned in such a way as to maximize the odds of qPrint successfully interacting with the chests.
