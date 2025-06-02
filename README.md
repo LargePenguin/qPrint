@@ -4,6 +4,12 @@ Written by Chubby__Penguin.
 Works best for flat carpet and fullblock staircased maparts. Staircased carpet is not supported due to some internal nonsense with Baritone.
 
 # Quickstart
+
+## Installation
+
+* Clone the repo and build with your favorite Java IDE
+* Or download the latest prebuilt jar [here](https://github.com/LargePenguin/qPrint/releases/latest)
+
 ## Configuration
 
 **Recommended:** Download the official carpet duper schematic.
