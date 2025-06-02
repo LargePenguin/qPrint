@@ -32,7 +32,7 @@ qPrint uses an item frame containing a cactus to denote a trash chest. When exce
 ## Define a chest region
 
 In the module settings, enable "Render Volumes".
-![Screenshot 1](http://raw.githubusercontent.com/LargePenguin/qPrint/refs/heads/main/screenshots/Pasted%20image%2020250601204713.png)
+![Screenshot 1](http://raw.githubusercontent.com/LargePenguin/qPrint/refs/heads/main/screenshots/Pasted%20image%2020250601204850.png)
 
 Use the commands `.qp loc set chestP1 [pos]` and `.qp loc set chestP2 [pos]` to define a storage region.
 
