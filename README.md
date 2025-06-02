@@ -94,3 +94,5 @@ The primary command, `.qp`, is documented below.
 	* Try enabling the "Swing Hand When Opening" and "Face Container When Opening" options in the module.
    	* Dropping the maximum reach in the module settings may also increase the odds of a successful chest interaction.
 	* Use the official duper schematic. The restock chests are all positioned in such a way as to maximize the odds of qPrint successfully interacting with the chests.
+* **Baritone prints a material list, but qPrint doesn't run the restock routine**
+  	* Make sure you have the qPrint module enabled in the modules list. 
