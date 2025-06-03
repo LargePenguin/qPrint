@@ -42,7 +42,7 @@ public class DumpState extends AbstractContainerState {
             module.info("DumpState::StateEnter (nSlots=" + nSlots + ")");
 
         // Move to the trash chest
-        if (!currentTargetContainer.isWithinDistance(mc.player.getBlockPos(), (int)reach - 1)) {
+        if (!currentTargetContainer.isWithinDistance(mc.player.getBlockPos(), reach)) {
             parent.push(new MoveState(module, currentTargetContainer, (int)reach - 1));
         }
     }
