@@ -6,12 +6,11 @@ Works best for flat carpet and fullblock staircased maparts. Staircased carpet i
 
 # Features
 
-* 97% automated map printing.
-* Detection and resolution of Baritone getting hung.
-* Auto-restock:
-  * When your account runs out of materials, qPrint will automatically grab what it needs from your chests.
+* **97% automated map printing.** The only thing you have to do for yourself is seal the completed map.
+* **TPS & Hang recovery.** If Baritone gets stuck, qPrint will employ various mechanisms to get it un-stuck.
+* **Auto-restock.** When your account runs out of materials, qPrint will automatically grab what it needs from your chests.
   * If there's no space in your inventory, qPrint will make use of a user-defined trash chest to create space.
-* Multi-agent avoidance. 
+* **Multi-agent avoidance.** You can work on the same print with multiple accounts, and the bots will never start placing blocks over each other (if it can be avoided)
 
 # Quickstart
 
@@ -72,7 +71,7 @@ And that's about it!
 
 The primary command, `.qp`, is documented below.
 
-* `.qp loc [clear|get|list|set] [locationName] <coords>`: gets, sets, or lists the specified location. Valid `locationName` are: `chestP0`, `chestP1`, and `platformOrigin`
+* `.qp loc [clear|get|list|set] [locationName] <coords>`: gets, sets, or lists the specified location. Valid `locationName` are: `chestP1`, `chestP2`, and `platformOrigin`
 * `.qp print [schematic]`: Prints the given schematic onto your platform.
 * `.qp [pause|resume|cancel|stop]`: Pauses, resumes, or cancels the print.
 * `.qp eta`: Prints the estimated time remaining on the print.
