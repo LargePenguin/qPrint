@@ -4,12 +4,10 @@ import com.qprint.QPrintAddon;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import meteordevelopment.meteorclient.commands.Command;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.PosArgument;
 import net.minecraft.command.argument.Vec3ArgumentType;
-import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import org.joml.Vector3d;
 
@@ -186,6 +184,8 @@ public class QuickPrintCommand extends Command {
             case "chestP1" -> QPrintAddon.printModule.storageP0.set(posToVec(pos));
             case "chestP2" -> QPrintAddon.printModule.storageP1.set(posToVec(pos));
         }
+
+        QPrintAddon.printModule.mapPlatform.updateBounds(vecToPos(QPrintAddon.printModule.platformOrigin.get()));
 
         info("Set location " + type + " to " + pos.toShortString());
 

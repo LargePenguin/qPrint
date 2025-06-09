@@ -167,4 +167,21 @@ public class Utilities {
 
         return String.format("%02d:%02d:%02d", hours, minutes, seconds);
     }
+
+    private static boolean isInLoadedChunk(BlockPos pos) {
+        return mc.world.isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4);
+    }
+
+    public static boolean isPointInRegion(BlockPos pos1, BlockPos pos2, BlockPos point) {
+        int minX = Math.min(pos1.getX(), pos2.getX());
+        int maxX = Math.max(pos1.getX(), pos2.getX());
+        int minY = Math.min(pos1.getY(), pos2.getY());
+        int maxY = Math.max(pos1.getY(), pos2.getY());
+        int minZ = Math.min(pos1.getZ(), pos2.getZ());
+        int maxZ = Math.max(pos1.getZ(), pos2.getZ());
+
+        return point.getX() >= minX && point.getX() <= maxX &&
+            point.getY() >= minY && point.getY() <= maxY &&
+            point.getZ() >= minZ && point.getZ() <= maxZ;
+    }
 }

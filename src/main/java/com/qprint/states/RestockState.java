@@ -64,7 +64,7 @@ public class RestockState extends AbstractContainerState {
 
         // First priority-- path to be within render distance of chest region & rebuild region's container mapping.
         if (!module.activeStorage.getP0().isWithinDistance(mc.player.getBlockPos(), 32))
-            parent.push(new MoveState(module, module.activeStorage.getP0(), 32));
+            parent.push(new MoveState(module, module.activeStorage.getP0(), 32, false));
     }
 
     @Override
@@ -94,13 +94,12 @@ public class RestockState extends AbstractContainerState {
         }
 
         if (!canReachTarget()) {
-            parent.push(new MoveState(module, currentTargetContainer, (int)reach - 1));
+            parent.push(new MoveState(module, currentTargetContainer, (int)reach - 1, true));
             return;
         }
 
-        if (checkStuck()) {
+        if (checkStuck())
             return;
-        }
 
         var blockState = mc.world.getBlockState(currentTargetContainer);
         var block = blockState.getBlock();
@@ -127,7 +126,7 @@ public class RestockState extends AbstractContainerState {
         if (missingMaterials.isEmpty()) {
             if (!hasMovedBack) {    // return to whence we came
                 hasMovedBack = true;
-                parent.push(new MoveState(module, playerPosPreState, 0));
+                parent.push(new MoveState(module, playerPosPreState, 0, false));
                 return;
             } else {
                 parent.pop(true);   // we did it!
@@ -149,7 +148,7 @@ public class RestockState extends AbstractContainerState {
 
         if (!initialized) {
             initialized = true;
-            scaleMaterialsList(missingMaterials);
+            scaleMaterialsList(missingMaterials, module.swapStackThreshold.get());
         }
 
         // Build a list of all the slots in the container which contain currentTargetItem
@@ -168,6 +167,11 @@ public class RestockState extends AbstractContainerState {
             var item = mc.player.currentScreenHandler.getSlot(slotIdx).getStack().getItem();
             int currentCount = getItemCount(item);
             if (currentCount < missingMaterials.get(currentTargetItem)) {
+                if (getFreeSlots() == 0) {
+                    // inventory is full, exit the state
+                    parent.pop(true);
+                    return false;
+                }
                 if (totalClicksThisTick <= 0)
                     return false;   // still got more to do next tick
                 mc.interactionManager.clickSlot(mc.player.currentScreenHandler.syncId, slotIdx, 0, SlotActionType.QUICK_MOVE, mc.player);

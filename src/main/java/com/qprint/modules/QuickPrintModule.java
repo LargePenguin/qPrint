@@ -4,10 +4,8 @@ import baritone.api.BaritoneAPI;
 import com.qprint.QPrintAddon;
 import com.qprint.states.PrintState;
 import com.qprint.states.StateMachine;
-import com.qprint.utils.MessageUtils;
-import com.qprint.utils.QPrintData;
-import com.qprint.utils.RecencyTracker;
-import com.qprint.utils.StorageRegion;
+import com.qprint.utils.*;
+import meteordevelopment.meteorclient.events.game.GameJoinedEvent;
 import meteordevelopment.meteorclient.events.game.GameLeftEvent;
 import meteordevelopment.meteorclient.events.game.OpenScreenEvent;
 import meteordevelopment.meteorclient.events.game.ReceiveMessageEvent;
@@ -31,8 +29,7 @@ import static com.qprint.utils.Utilities.*;
 
 public class QuickPrintModule extends Module {
     public QuickPrintModule() {
-        super(QPrintAddon.CATEGORY, "quick-print", "Main printer module");
-
+        super(QPrintAddon.CATEGORY, "quick-print", "Main printer module. Use the .qp command to trigger prints.");
         data = loadData();
     }
 
@@ -125,6 +122,13 @@ public class QuickPrintModule extends Module {
         .build()
     );
 
+    public final Setting<Boolean> resumeOnReconnect = sgRecovery.add(new BoolSetting.Builder()
+        .name("Resume on Reconnect")
+        .description("If we were mid-print when we disconnected, should we resume the print upon reconnect?")
+        .defaultValue(false)
+        .build()
+    );
+
     // ============================= AVOIDANCE SETTINGS ============================================
     public final Setting<List<String>> otherBots = sgAvoidance.add(new StringListSetting.Builder()
         .name("Accounts to Avoid")
@@ -149,10 +153,17 @@ public class QuickPrintModule extends Module {
     );
 
     // ============================= RESTOCK SETTINGS ============================================
+    public final Setting<Boolean> doRestock = sgRestock.add(new BoolSetting.Builder()
+        .name("Enable Restock?")
+        .description("Should qPrint automatically refill the inventory when needed?")
+        .defaultValue(true)
+        .build()
+    );
     public final Setting<Boolean> useTrash = sgRestock.add(new BoolSetting.Builder()
         .name("Dump Unneeded Items in Trash")
         .description("Only blocks will be dumped. Items, gear, etc. will remain in inventory")
         .defaultValue(true)
+        .visible(doRestock::get)
         .build()
     );
     public final Setting<Integer> excessMaterialsThreshold = sgRestock.add(new IntSetting.Builder()
@@ -160,13 +171,14 @@ public class QuickPrintModule extends Module {
         .description("The largest amount of a single material the account should hold. Excess stacks will be dumped in the trash chest.")
         .defaultValue(6)
         .range(1,27)
-        .visible(useTrash::get)
+        .visible(() -> doRestock.get() && useTrash.get())
         .build()
     );
     public final Setting<Boolean> swapStacks = sgRestock.add(new BoolSetting.Builder()
         .name("Swap Lesser Stacks for Better Stacks")
         .description("Dumps small stacks of items for bigger stacks of items.")
         .defaultValue(false)
+        .visible(doRestock::get)
         .build()
     );
     public final Setting<Integer> swapStackThreshold = sgRestock.add(new IntSetting.Builder()
@@ -174,13 +186,14 @@ public class QuickPrintModule extends Module {
         .description("Stacks containing <= this number of items will be swapped if dumpSmallStacks = true.")
         .defaultValue(16)
         .range(1,64)
-        .visible(swapStacks::get)
+        .visible(() -> swapStacks.get() && doRestock.get())
         .build()
     );
     public final Setting<Boolean> stopOnMissingMaterial = sgRestock.add(new BoolSetting.Builder()
         .name("Stop On Missing Materials")
         .description("Controls whether the module stops building if it can't find a restock chest with a required material")
         .defaultValue(true)
+        .visible(doRestock::get)
         .build()
     );
     public final Setting<Integer> maxClicksPerTick = sgRestock.add(new IntSetting.Builder()
@@ -188,6 +201,7 @@ public class QuickPrintModule extends Module {
         .description("Maximum number of clicks per tick when moving items.")
         .defaultValue(2)
         .sliderRange(1, 500)
+        .visible(doRestock::get)
         .build()
     );
     public final Setting<Integer> containerOpenDelay = sgRestock.add(new IntSetting.Builder()
@@ -195,6 +209,7 @@ public class QuickPrintModule extends Module {
         .description("Delay in ticks between opening chests.")
         .defaultValue(5)
         .sliderRange(0, 20)
+        .visible(doRestock::get)
         .min(0)
         .build()
     );
@@ -203,6 +218,7 @@ public class QuickPrintModule extends Module {
         .description("Delay in ticks for how long the chest is held open.")
         .defaultValue(10)
         .sliderRange(0, 20)
+        .visible(doRestock::get)
         .min(0)
         .build()
     );
@@ -210,6 +226,7 @@ public class QuickPrintModule extends Module {
         .name("Reach Shape")
         .description("The shape of your reach")
         .defaultValue(ReachModes.Sphere)
+        .visible(doRestock::get)
         .build());
     public final Setting<Double> sphereReachRange = sgRestock.add(new DoubleSetting.Builder()
         .name("Sphere Range")
@@ -217,7 +234,7 @@ public class QuickPrintModule extends Module {
         .defaultValue(4)
         .sliderRange(1, 5)
         .min(1)
-        .visible(() -> reachMode.get() == ReachModes.Sphere)
+        .visible(() -> doRestock.get() && reachMode.get() == ReachModes.Sphere)
         .build()
     );
     public final Setting<Integer> boxReachRange = sgRestock.add(new IntSetting.Builder()
@@ -226,26 +243,21 @@ public class QuickPrintModule extends Module {
         .defaultValue(4)
         .sliderRange(1, 4)
         .min(1)
-        .visible(() -> reachMode.get() == ReachModes.Box)
+        .visible(() -> doRestock.get() && reachMode.get() == ReachModes.Box)
         .build()
     );
     public final Setting<Boolean> doHandSwing = sgRestock.add(new BoolSetting.Builder()
         .name("Swing Hand When Opening")
         .description("Do or Do Not swing hand when opening chests.")
         .defaultValue(true)
+        .visible(doRestock::get)
         .build()
     );
     public final Setting<Boolean> rotateToFaceContainer = sgRestock.add(new BoolSetting.Builder()
         .name("Face Container When Opening")
         .description("Faces the containers being opened server side.")
         .defaultValue(true)
-        .build()
-    );
-    public final Setting<Integer> autoStealDelay = sgRestock.add(new IntSetting.Builder()
-        .name("AutoSteal Delay")
-        .description("Delay in ticks between stealing items from open containers.")
-        .defaultValue(1)
-        .sliderRange(0, 20)
+        .visible(doRestock::get)
         .build()
     );
 
@@ -330,6 +342,7 @@ public class QuickPrintModule extends Module {
     public final StateMachine stateMachine = new StateMachine(this);
     public final RecencyTracker recentItems = new RecencyTracker();
     public StorageRegion activeStorage;
+    public final MapPlatform mapPlatform = new MapPlatform();
     private final Map<String, Object> settingsPreTrigger = new HashMap<>();
 
     private static final double DEF_BPT_VAL = 0.1;  // assume ~0.1 b/t placement rate. basically a number i pulled out of my ass.
@@ -338,9 +351,7 @@ public class QuickPrintModule extends Module {
 
     private QPrintData data;
     private int bptTicksCounter;
-    private int lastBlockCount;
     private long lastReportTime;
-    private int initialBlocksPlaced;
 
     private String schematic;
     private int failureCount;
@@ -356,6 +367,9 @@ public class QuickPrintModule extends Module {
             return;
         }
 
+        mapPlatform.updateBounds(vecToPos(platformOrigin.get()))    ;
+        mapPlatform.reset();
+
         updateSettings();
         MessageUtils.clearMessageQueue();
 
@@ -363,8 +377,10 @@ public class QuickPrintModule extends Module {
             cancel(false);
         }
 
+        lastReportTime = System.currentTimeMillis();
+        bptTicksCounter = 0;
+
         failureCount = 0;
-        initialBlocksPlaced = getPlatformBlockCount();
         this.schematic = schematic;
 
         stateMachine.push(new PrintState(this, schematic));
@@ -386,7 +402,6 @@ public class QuickPrintModule extends Module {
 
             info("Trying the print again (attempt " + failureCount + "/" + maxRetries + ")...");
 
-            initialBlocksPlaced = getPlatformBlockCount();
             stateMachine.push(new PrintState(this, schematic));
         } else {
             cancel(false);
@@ -401,6 +416,7 @@ public class QuickPrintModule extends Module {
             info("Paused. .qp resume to resume; .qp cancel to cancel");
         }
 
+        triggerSave();
         stateMachine.isPaused = true;
     }
 
@@ -435,26 +451,21 @@ public class QuickPrintModule extends Module {
             return;
         }
 
-        var overallPlaced = getPlatformBlockCount();
-        var remainingBlocks = (128 * 128) - overallPlaced;
-        var avgBpt = data.bptSamples.stream().mapToDouble(d -> d).average().orElse(DEF_BPT_VAL);
+        var ticks = System.currentTimeMillis() - lastReportTime;
+        var completionPct = mapPlatform.reportProgress();
+        var remainingTicks = mapPlatform.getTicksRemaining(ticks);
 
-        if (avgBpt == 0)
-            avgBpt = DEF_BPT_VAL;
+        var delta = mapPlatform.getLastDelta();
+        var timeRemaining = Math.round((double)remainingTicks / 20);
 
-        var remainingTicks = remainingBlocks / avgBpt;
-
-        var completionPct = Math.floor((((float)overallPlaced) / (128 * 128)) * 100);
-        var timeRemaining = Math.round(remainingTicks / 20);
-
-        info(completionPct + "%% complete. ETA: " + formatTime(timeRemaining) + " (" + String.format("%.5f", avgBpt) + " blocks/tick)");
+        info(String.format("%.2f", completionPct) + "%% complete. ("/* ETA: " + formatTime(timeRemaining) + " ("*/ + String.format("%.5f", (double)delta / ticks) + " blocks/tick)");
     }
 
     private void onTaskFinish() {
         restoreSettings();
         MessageUtils.clearMessageQueue();
         stateMachine.reset();
-        saveData(data);
+        triggerSave();
     }
 
     private void updateSettings() {
@@ -483,6 +494,17 @@ public class QuickPrintModule extends Module {
         activeStorage = new StorageRegion("Storage", p0, p1);
     }
 
+    private void triggerSave() {
+        if (stateMachine.isComplete()) {
+            data.currentPrintName = null;
+            data.recentItems = new ArrayList<>();
+        } else {
+            data.recentItems = recentItems.getRecentItems();
+        }
+
+        saveData(data);
+    }
+
     private void printStorageContents() {
         printContents.set(false);
 
@@ -492,14 +514,6 @@ public class QuickPrintModule extends Module {
         }
 
         activeStorage.printContents();
-    }
-
-    private int getPlatformBlockCount() {
-        var farCorner = new Vector3d(platformOrigin.get());
-        farCorner.x += 127;
-        farCorner.z += 127;
-
-        return countNonAirBlocks(vecToPos(platformOrigin.get()), vecToPos(farCorner));
     }
 
     @Override
@@ -512,8 +526,6 @@ public class QuickPrintModule extends Module {
     @Override
     public void onDeactivate() {
         pause(false);
-
-        saveData(data);
     }
 
     @EventHandler
@@ -530,22 +542,25 @@ public class QuickPrintModule extends Module {
         if (bptTicksCounter >= BPT_MEASUREMENT_INC) {
             bptTicksCounter = 0;
 
-            int currentBlockCount = data.bptSamples.isEmpty() ? getPlatformBlockCount() - initialBlocksPlaced : getPlatformBlockCount();
-            int placedThisPeriod = currentBlockCount - lastBlockCount;
-            lastBlockCount = currentBlockCount;
-
-            double bpt = placedThisPeriod / (double)(progReportInterval.get() * 1200);
-            data.bptSamples.addLast(bpt);
-            if (data.bptSamples.size() > MAX_BPT_SAMPLES)
-                data.bptSamples.removeFirst();
+            mapPlatform.tick();
         }
 
         if (doProgressReporting.get()) {
             if (lastReportTime == 0)
                 lastReportTime = System.currentTimeMillis();
-            if (((System.currentTimeMillis() - lastReportTime) / 60000) >= progReportInterval.get()) {
+            else if (((System.currentTimeMillis() - lastReportTime) / 60000) >= progReportInterval.get()) {
                 printETA();
                 lastReportTime = System.currentTimeMillis();
+            }
+        }
+    }
+
+    @EventHandler
+    private void onPlayerJoin(GameJoinedEvent event) {
+        if (resumeOnReconnect.get()) {
+            data = loadData();
+            if (data.currentPrintName != null) {
+                print(data.currentPrintName);
             }
         }
     }
@@ -554,6 +569,7 @@ public class QuickPrintModule extends Module {
     private void onScreenOpen(OpenScreenEvent event) {
         if (event.screen instanceof DisconnectedScreen) {
             MessageUtils.clearMessageQueue();
+            triggerSave();
             stateMachine.reset();
         }
     }
@@ -561,6 +577,11 @@ public class QuickPrintModule extends Module {
     @EventHandler
     private void onGameLeft(GameLeftEvent event) {
         MessageUtils.clearMessageQueue();
+
+        if (!stateMachine.isComplete()) {
+            triggerSave();
+        }
+
         stateMachine.reset();
     }
 

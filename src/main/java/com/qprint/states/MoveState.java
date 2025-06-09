@@ -15,18 +15,19 @@ public class MoveState extends AbstractState {
     private final BlockPos target;
     private boolean wasPathing, userPause;
     private int maxRange;
+    private boolean shouldFail;
 
-    // TODO: add a flag specifying whether baritone pathfinding failure should result in overall task failure
-    public MoveState(QuickPrintModule module, BlockPos target, int maxRange) {
+    public MoveState(QuickPrintModule module, BlockPos target, int maxRange, boolean failIfCannotReach) {
         super(module);
         this.target = target;
         this.maxRange = maxRange;
+        shouldFail = failIfCannotReach;
     }
 
     @Override
     public void stateEnter() {
         if (module.doStateLogging.get())
-            module.info("MoveState::StateEnter (goal=" + posToString(target) + ",r=" + maxRange + ")");
+            module.info("MoveState::StateEnter (goal=" + posToString(target) + ",r=" + maxRange + ",f=" + shouldFail +")");
 
         BaritoneAPI.getSettings().allowBreak.value = false;
         BaritoneAPI.getSettings().allowPlace.value = false;
@@ -63,7 +64,7 @@ public class MoveState extends AbstractState {
                 parent.pop(true);   // success!
             }
 
-            // Did the user request the pause?
+            // Did the user request a pause?
             if (hasPausedMessage()) {
                 userPause = true;
             }
@@ -86,13 +87,18 @@ public class MoveState extends AbstractState {
             return;
         }
 
+        if (!shouldFail) {
+            parent.pop(true);
+            return;
+        }
+
         module.error("Baritone pathfinding timed out.");
         parent.pop(false);
         noTick = true;
     }
 
     private boolean isAtTarget() {
-        return mc.player.getBlockPos().getSquaredDistance(target) <= (maxRange == 0 ? 1 : maxRange * maxRange);
+        return mc.player.getBlockPos().isWithinDistance(target, maxRange + 1);
     }
 
     private void stop() {

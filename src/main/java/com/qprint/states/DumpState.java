@@ -2,11 +2,7 @@ package com.qprint.states;
 
 import com.qprint.modules.QuickPrintModule;
 import meteordevelopment.meteorclient.events.world.TickEvent;
-import net.minecraft.command.argument.EntityAnchorArgumentType;
-import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket;
 import net.minecraft.screen.slot.SlotActionType;
-import net.minecraft.util.Hand;
-import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -43,7 +39,7 @@ public class DumpState extends AbstractContainerState {
 
         // Move to the trash chest
         if (!currentTargetContainer.isWithinDistance(mc.player.getBlockPos(), reach)) {
-            parent.push(new MoveState(module, currentTargetContainer, (int)reach - 1));
+            parent.push(new MoveState(module, currentTargetContainer, (int)reach - 1, true));
         }
     }
 
@@ -58,7 +54,8 @@ public class DumpState extends AbstractContainerState {
 
         updateReach();
 
-        if (checkStuck()) return;
+        if (checkStuck())
+            return;
 
         if (isValidContainerBlock(block) && !isChestOpen) {
             openContainer(currentTargetContainer);
@@ -104,6 +101,7 @@ public class DumpState extends AbstractContainerState {
 
         if (!initialized) {
             calculateDumpStacks(playerInvStart);
+            initialized = true;
         }
 
         // if we still have clicks available this tick & stuff to dump, dump things until one of these conditions is no longer met
@@ -135,7 +133,7 @@ public class DumpState extends AbstractContainerState {
         assert mc.player != null;
 
         // dump any items with > the defined threshold of stacks
-        var excessStacks = module.recentItems.getExcessStackSlots(playerInvStart, module.excessMaterialsThreshold.get());
+        var excessStacks = module.recentItems.getSlotsToDump(playerInvStart, module.excessMaterialsThreshold.get());
         dumpStacks.addAll(excessStacks);
         nSlots -= excessStacks.size();
 

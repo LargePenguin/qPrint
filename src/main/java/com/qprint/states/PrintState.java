@@ -27,6 +27,7 @@ public class PrintState extends AbstractState {
     private int stuckResolutionCounter = 0;
     private final int[] stuckMoveAmounts = { 2, 2, 3, 3, 4 };
     private int stuckCount = 0;
+    private boolean initialized;
 
     private final Map<PlayerEntity, Integer> avoidancePlayers = new HashMap<>();
 
@@ -70,7 +71,12 @@ public class PrintState extends AbstractState {
         BaritoneAPI.getSettings().allowBreak.value = true;
         BaritoneAPI.getSettings().allowPlace.value = true;
 
-        runBuildCommand();
+        if (!module.mapPlatform.hasInitialized()) {
+            parent.push(new SurveyState(module, SurveyState.SurveyType.Transit, false));
+        } else {
+            runBuildCommand();
+            initialized = true;
+        }
     }
 
     @Override
@@ -85,6 +91,12 @@ public class PrintState extends AbstractState {
 
     @Override
     public void statePostTick(TickEvent.Post event) {
+        if (!initialized) {
+            initialized = true;
+            runBuildCommand();
+            return;
+        }
+
         if (isStuck) {
             if (stuckCount < module.maxStuckResolutions.get()) {
                 if (hasDoneBuildingMessage()) {
@@ -98,7 +110,7 @@ public class PrintState extends AbstractState {
                     module.info("r=" + stuckMoveAmounts[stuckCount] + ", resolutionPos=" + posToString(pos));
                 stopBuilding();
                 isStuck = false;
-                parent.push(new MoveState(module, pos, 0));
+                parent.push(new MoveState(module, pos, 0, false));
 
                 stuckResolutionCounter = STUCK_RESOLUTION_TICKS;
 
@@ -126,7 +138,13 @@ public class PrintState extends AbstractState {
             var materials = getLastBaritoneMaterialDump();
 
             if (materials != null) {
-                parent.push(new RestockState(module, materials, mc.player.getBlockPos()));
+                if (module.doRestock.get())
+                    parent.push(new RestockState(module, materials, mc.player.getBlockPos()));
+                else {
+                    module.info("Pausing since auto-restock is disabled.");
+                    module.pause(false);
+                    return;
+                }
             }
         }
 
@@ -150,7 +168,7 @@ public class PrintState extends AbstractState {
                 if (module.doStateLogging.get())
                     module.info("(resolutionPos=" + posToString(pos) + ")");
 
-                parent.push(new MoveState(module, pos, 0));
+                parent.push(new MoveState(module, pos, 0, false));
                 return;
             }
         }

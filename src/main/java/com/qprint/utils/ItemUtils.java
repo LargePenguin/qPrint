@@ -43,17 +43,19 @@ public class ItemUtils {
         return result;
     }
 
-    public static void scaleMaterialsList(Map<Item, Integer> mats) {
-        var total = mats.values().stream().filter(i -> i >= 0).mapToInt(Integer::intValue).sum();
+    public static void scaleMaterialsList(Map<Item, Integer> mats, int threshold) {
+        var total = mats.values().stream().filter(i -> i >= threshold).mapToInt(Integer::intValue).sum();
         var emptySlots = getFreeSlots() - mats.values().stream()
-            .filter(i -> i < 0)
+            .filter(i -> i < threshold)
             .mapToInt(Math::abs)
             .sum();
 
         if (mats.size() > emptySlots) {
             for (var entry : mats.entrySet()) {
                 if (entry.getValue() < 0) {
-                    entry.setValue(-entry.getKey().getMaxCount() * entry.getValue());
+                    entry.setValue(Math.abs(entry.getKey().getMaxCount() * entry.getValue()));
+                } else if (entry.getValue() < threshold) {
+                    entry.setValue(entry.getKey().getMaxCount());
                 }
             }
             return; // we'd be scaling down the requested amounts; we only ever want to scale up
@@ -65,11 +67,13 @@ public class ItemUtils {
         // Compute relative ratios of each requested item, scaled to available slots
         for (var entry : mats.entrySet()) {
             if (entry.getValue() < 0) {
-                entry.setValue(-entry.getKey().getMaxCount() * entry.getValue());
-                continue;
+                entry.setValue(Math.abs(entry.getKey().getMaxCount() * entry.getValue()));
+            } else if (entry.getValue() < threshold) {
+                entry.setValue(entry.getKey().getMaxCount());
+            } else {
+                var ratio = entry.getValue() / (double) total;
+                entry.setValue(Math.max(entry.getKey().getMaxCount(), entry.getKey().getMaxCount() * (int) Math.floor(ratio * emptySlots)));
             }
-            var ratio = entry.getValue() / (double)total;
-            entry.setValue(Math.max(entry.getKey().getMaxCount(), entry.getKey().getMaxCount() * (int)Math.floor(ratio * emptySlots)));
         }
     }
 

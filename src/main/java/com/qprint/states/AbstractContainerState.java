@@ -41,6 +41,7 @@ public abstract class AbstractContainerState extends AbstractState {
         if (isChestOpen && mc.player.currentScreenHandler != null && !isContainerScreen(mc.player.currentScreenHandler)) {
             if (openedTicksPassed > 0) {
                 openedTicksPassed--;
+                return false;
             } else {
                 // Likely stuck-- we should have a chest open, but we don't.
                 isChestOpen = false;
@@ -51,15 +52,16 @@ public abstract class AbstractContainerState extends AbstractState {
                 module.error("Failed to open container! Attempting resolution (" + currentStuckRetry + "/" + module.maxStuckResolutions.get() + ")...");
 
                 if (Math.floor(reach) - currentStuckRetry > 0) {    // Method 1: try getting closer to the container
-                    parent.push(new MoveState(module, currentTargetContainer, (int) Math.floor(reach) - currentStuckRetry));
+                    parent.push(new MoveState(module, currentTargetContainer, (int) Math.floor(reach) - currentStuckRetry, false));
                     return true;
                 } else {    // Method 2: pathfind back to platformOrigin to see if we can approach from a different angle
-                    parent.push(new MoveState(module, vecToPos(module.platformOrigin.get()), 0));
+                    parent.push(new MoveState(module, vecToPos(module.platformOrigin.get()), 0, false));
                     return true;
                 }
             }
         }
 
+        currentStuckRetry = 0;
         return false;
     }
 
